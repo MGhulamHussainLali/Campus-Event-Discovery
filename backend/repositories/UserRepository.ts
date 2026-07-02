@@ -1,9 +1,5 @@
-import { Pool } from "pg";
 import User from '../models/user';
-
-interface IDatabase {
-    query(text: string, params?: any[]): Promise<any>;
-}
+import { IDatabase } from '../interfaces/IDataBase'; 
 
 class UserRepository {
     constructor(
@@ -180,3 +176,4 @@ class UserRepository {
         }
     }
 }
+export default UserRepository
