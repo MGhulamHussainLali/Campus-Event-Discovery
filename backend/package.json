@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "pg": "^8.22.0",
+    "pool": "^0.4.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
+}
