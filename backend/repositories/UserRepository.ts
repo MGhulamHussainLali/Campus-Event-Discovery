@@ -1,5 +1,5 @@
 import User from '../models/user';
-import { IDatabase } from '../interfaces/IDataBase'; 
+import { IDatabase, IDatabaseClient } from '../interfaces/DBConnection'; 
 
 class UserRepository {
     constructor(
@@ -21,9 +21,10 @@ class UserRepository {
             row.created_at
         );
     }
-    async create(user: User): Promise<boolean> {
+    async create(user: User, client?: IDatabaseClient): Promise<boolean> {
+        const db = client ?? this.db;
         try {
-            const result = await this.db.query("INSERT INTO users (name,email,hashed_password,picture_url,role,account_status,email_verified,created_at)\
+            const result = await db.query("INSERT INTO users (name,email,hashed_password,picture_url,role,account_status,email_verified,created_at)\
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)\
             RETURNING id", [user.getName(), user.getEmail(), user.getHashedPassword(), user.getPictureURL(), user.getRole(), user.getAccountStatus(), user.getEmailVerified(), user.getCreatedAt()])
             return (result.rowCount ?? 0) > 0;
@@ -38,9 +39,10 @@ class UserRepository {
         }
 
     }
-    async findById(id: number):Promise<User|null>{
+    async findById(id: number, client?: IDatabaseClient):Promise<User|null>{
+        const db = client ?? this.db;
         try {
-            const result = await this.db.query("SELECT * FROM users WHERE id=$1 ", [id])
+            const result = await db.query("SELECT * FROM users WHERE id=$1 ", [id])
             if (result.rowCount === 0) return null;
             return this.mapRowToUser(result.rows[0]);
         }
@@ -53,9 +55,10 @@ class UserRepository {
 
 
     }
-    async findByEmail(email: string):Promise<User|null>{
+    async findByEmail(email: string, client?: IDatabaseClient):Promise<User|null>{
+        const db = client ?? this.db;
         try {
-            const result = await this.db.query("SELECT * FROM users WHERE   email=$1 ", [email])
+            const result = await db.query("SELECT * FROM users WHERE   email=$1 ", [email])
            
             if (result.rowCount === 0) return null;
             return this.mapRowToUser(result.rows[0]);
@@ -68,10 +71,11 @@ class UserRepository {
         }
 
     }
-    async existsByEmail(email: string):Promise<boolean> 
+    async existsByEmail(email: string, client?: IDatabaseClient):Promise<boolean> 
     {
+        const db = client ?? this.db;
         try{
-            const result:any= await this.db.query("SELECT * from users WHERE email=$1",[email])
+            const result:any= await db.query("SELECT * from users WHERE email=$1",[email])
             return (result.rowCount??0)>0
         }
         catch(err:any){
@@ -79,9 +83,10 @@ class UserRepository {
         }
 
     }
-  async updateAccountStatus(id: number, status: string): Promise<boolean> {
+  async updateAccountStatus(id: number, status: string, client?: IDatabaseClient): Promise<boolean> {
+  const db = client ?? this.db;
   try {
-    const result = await this.db.query(
+    const result = await db.query(
       "UPDATE users SET account_status = $1 WHERE id = $2",
       [status, id]
     );
@@ -90,10 +95,11 @@ class UserRepository {
     throw err;
   }
 }
-    async updateEmailVerified(id: number, verified: boolean):Promise<boolean> {
+    async updateEmailVerified(id: number, verified: boolean, client?: IDatabaseClient):Promise<boolean> {
+        const db = client ?? this.db;
         try
         {
-            const result:any=await this.db.query("UPDATE users SET email_verified=$1 WHERE id=$2 RETURNING *",[verified,id]);
+            const result:any=await db.query("UPDATE users SET email_verified=$1 WHERE id=$2 RETURNING *",[verified,id]);
             return (result.rowCount??0)>0
         }
         catch(err:any)
@@ -102,10 +108,11 @@ class UserRepository {
         }
     }
 
-    async updatePassword(id: number, hashedPassword: string): Promise<boolean> {
+    async updatePassword(id: number, hashedPassword: string, client?: IDatabaseClient): Promise<boolean> {
+        const db = client ?? this.db;
         try
         {
-            const result:any=await this.db.query("UPDATE users SET hashed_password=$1 WHERE id=$2 RETURNING *",[hashedPassword,id]);
+            const result:any=await db.query("UPDATE users SET hashed_password=$1 WHERE id=$2 RETURNING *",[hashedPassword,id]);
             return (result.rowCount??0)>0
         }
         catch(err:any)
@@ -114,7 +121,8 @@ class UserRepository {
         }
     }
 
-    async findAll(filters?: { role?: string; accountStatus?: string }): Promise<User[]> {
+    async findAll(filters?: { role?: string; accountStatus?: string }, client?: IDatabaseClient): Promise<User[]> {
+        const db = client ?? this.db;
         let filter_conditions:string[]=[];
         let filter_value:string[]=[];
         let paramIndex=1; 
@@ -134,7 +142,7 @@ class UserRepository {
 
 
         try{
-            const result = await this.db.query(`SELECT * FROM users ${whereClause}`, filter_value);
+            const result = await db.query(`SELECT * FROM users ${whereClause}`, filter_value);
             return result.rows.map((row: any) => this.mapRowToUser(row));
         }
         catch(err:any)
@@ -143,14 +151,15 @@ class UserRepository {
 
         }
     }
-    async update(id: number, fields: Partial<User>): Promise<User | null> {
+    async update(id: number, fields: Partial<User>, client?: IDatabaseClient): Promise<User | null> {
+        const db = client ?? this.db;
         const user_fileds=Object.entries(fields);
         const setClause=user_fileds.map(([key],i)=>`${key}=$${i+1}`).join(',');
         const setValues=user_fileds.map(([,value],i)=> value)
 
         try
         {
-            const result=await this.db.query(`UPDATE users SET ${setClause} WHERE id =$${user_fileds.length+1} RETURNING *`,[...setValues, id])
+            const result=await db.query(`UPDATE users SET ${setClause} WHERE id =$${user_fileds.length+1} RETURNING *`,[...setValues, id])
             if ((result.rowCount??0)==0)
                 throw new Error("UNABLE TO UPDATE")
             return this.mapRowToUser(result.rows[0]);
@@ -161,11 +170,12 @@ class UserRepository {
         }
 
     }
-    async delete(id: number): Promise<boolean> 
+    async delete(id: number, client?: IDatabaseClient): Promise<boolean> 
     {
+        const db = client ?? this.db;
         try
         {
-            const result =await this.db.query(`DELETE FROM users WHERE id=$1 RETURNING *`, [id])
+            const result =await db.query(`DELETE FROM users WHERE id=$1 RETURNING *`, [id])
             if ((result.rowCount??0)>0)
                 return true
             return false
