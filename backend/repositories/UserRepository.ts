@@ -40,15 +40,16 @@ class UserRepository {
         );
     }
 
-    async create(user: User, client?: IDatabaseClient): Promise<boolean> {
+    async create(user: User, client?: IDatabaseClient): Promise<number> {
         const db = client ?? this.db;
         try {
             const result = await db.query("INSERT INTO users (name,email,hashed_password,picture_url,role,account_status,email_verified,created_at)\
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)\
             RETURNING id", [user.getName(), user.getEmail(), user.getHashedPassword(), user.getPictureURL(), user.getRole(), user.getAccountStatus(), user.getEmailVerified(), user.getCreatedAt()])
-            return (result.rowCount ?? 0) > 0;
+            return (result.rowCount ?? 0)?result.rows[0]:-1;
         }
-        catch (err: any) {
+        catch (err: any) 
+        {
             if (err.code === '23505') {
                 throw new Error('Email already exists');
             }
