@@ -1,6 +1,24 @@
 import User from '../models/user';
 import { IDatabase, IDatabaseClient } from '../interfaces/DBConnection'; 
 
+interface UserUpdateFields {
+    name?: string;
+    email?: string;
+    hashedPassword?: string;
+    pictureURL?: string | null;
+    accountStatus?: 'pending' | 'approved' | 'rejected' | 'suspended';
+    emailVerified?: boolean;
+}
+
+const fieldMap: Record<string, string> = {
+    name: 'name',
+    email: 'email',
+    hashedPassword: 'hashed_password',
+    pictureURL: 'picture_url',
+    accountStatus: 'account_status',
+    emailVerified: 'email_verified'
+};
+
 class UserRepository {
     constructor(
         private db: IDatabase
@@ -21,6 +39,7 @@ class UserRepository {
             row.created_at
         );
     }
+
     async create(user: User, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
@@ -151,10 +170,10 @@ class UserRepository {
 
         }
     }
-    async update(id: number, fields: Partial<User>, client?: IDatabaseClient): Promise<User | null> {
+    async update(id: number, fields: UserUpdateFields, client?: IDatabaseClient): Promise<User | null> {
         const db = client ?? this.db;
         const user_fileds=Object.entries(fields);
-        const setClause=user_fileds.map(([key],i)=>`${key}=$${i+1}`).join(',');
+        const setClause=user_fileds.map(([key],i)=>`${fieldMap[key]}=$${i+1}`).join(',');
         const setValues=user_fileds.map(([,value],i)=> value)
 
         try

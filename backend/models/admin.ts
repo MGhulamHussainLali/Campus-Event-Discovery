@@ -1,22 +1,21 @@
 import User from './user.ts'
+
 class Admin extends User {
 constructor(
         id: number,
         name:string, 
         email:string, 
         hashedPassword:string,
-        pictureURL:string|null,
-        role: 'student' | 'organizer' | 'admin', 
+        pictureURL:string|null, 
         accountStatus: 'pending' | 'approved' | 'rejected' | 'suspended', 
         emailVerified:boolean, 
-        // Pending: This needs to be readonly.
         createdAt:Date,
         private isSuperAdmin:boolean,
         private createdByAdminId:number|null
 )
 
 {
-    super(id,name,email,hashedPassword,pictureURL,role,accountStatus,emailVerified,createdAt);
+    super(id,name,email,hashedPassword,pictureURL,"admin",accountStatus,emailVerified,createdAt);
 }
 
 getIsSuperAdmin():boolean
@@ -36,6 +35,10 @@ getCreatedByAdminId(): number | null {
 setCreatedByAdminId(createdByAdminId:number|null)
 {
     this.createdByAdminId=createdByAdminId;
+}
+getAdminId():number
+{
+return this.getId();
 }
 
 }

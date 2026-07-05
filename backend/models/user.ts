@@ -9,7 +9,7 @@ class User{
         private accountStatus: 'pending' | 'approved' | 'rejected' | 'suspended', 
         private emailVerified:boolean, 
         // Pending: This needs to be readonly.
-        private createdAt:Date
+        private readonly createdAt:Date
 
         )
         {
@@ -19,15 +19,16 @@ class User{
         {
             return this.id;
         }
-        setId(id:number):void{
-            this.id=id;
-        }
+        //Design Choice: we don't need setId, Id is set by the DB itself (Serial PK)
+        // setId(id:number):void{
+        //     this.id=id;
+        // }
         getName():string
         {
             return this.name;
         }
         setName(name:string):void{
-
+            this.name=name;
         }
         getEmail():string{
             return this.email;
@@ -45,17 +46,13 @@ class User{
         {
             return this.pictureURL;
         }
-        setPictureURL(pictureURL:string):void{
+        setPictureURL(pictureURL:string|null):void{
             this.pictureURL=pictureURL;
         }
         getRole():string
         {
             return this.role;
         }
-        setRole(role:'student' | 'organizer' | 'admin'):void{
-            this.role=role;
-        }
-
         getAccountStatus():string
         {
             return this.accountStatus;
@@ -76,11 +73,7 @@ class User{
         getCreatedAt():Date{
             return this.createdAt;
         }
-        setCreatedAt(createdAt:Date)
-        {
-            this.createdAt=createdAt;
-        }
-
+     
     }
 export default  User
 
