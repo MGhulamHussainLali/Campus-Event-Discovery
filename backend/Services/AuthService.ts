@@ -12,19 +12,22 @@ import RefreshTokenRepository from '../repositories/RefreshTokenRepository';
 import PasswordResetTokenRepository from '../repositories/PasswordResetTokenRepository';
 import User from '../models/user';
 import OrganizerService from './OrganizerService';
-
+import LoginAttemptRepository from '../repositories/LoginAttemptRepository';
 
 class AuthService {
     //later in env variables (in final code review)
     private static readonly SALT_ROUNDS = 12;
     constructor(
         private db: IDatabase,
+        private loginAttemptRepository:LoginAttemptRepository,
         private userRepository: UserRepository,
         private organizerService: OrganizerService,
         private studentService: StudentService,
         private emailVerificationTokenRepository: EmailVerificationTokenRepository,
         private refreshTokenRepository: RefreshTokenRepository,
-        private passwordResetTokenRepository: PasswordResetTokenRepository
+        private passwordResetTokenRepository: PasswordResetTokenRepository,
+        private maxAttempts:number=5,
+        private loginMinutesAllowed:number=5
     ) {
 
     }
@@ -73,6 +76,12 @@ class AuthService {
     }
 
     async login(email: string, password: string, userAgent: string | null, ipAddress: string | null): Promise<{ accessToken: string, refreshToken: string }> {
+
+        const attempts:number=await this.loginAttemptRepository.countRecentFailedAttempts(email,this.loginMinutesAllowed)
+        if (attempts>=this.maxAttempts)
+        {  
+            throw new Error("Maximum number of Login Attempts failed. Try after some time");
+        }
         const user = await this.userRepository.findByEmail(email);
         if (!user) {
             throw new Error("Invalid email or password")
@@ -80,6 +89,8 @@ class AuthService {
         const hashed_password = user.getHashedPassword();
         const passwordMatch = await bcrypt.compare(password, hashed_password);
         if (!passwordMatch) {
+            
+            await this.loginAttemptRepository.create(user.getId(),email,false,ipAddress)
             throw new Error("Invalid email or password");
         }
         if (!user.getEmailVerified()) {
@@ -98,6 +109,7 @@ class AuthService {
         const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await this.refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt, userAgent, ipAddress);
+        await this.loginAttemptRepository.create(user.getId(),email,true,ipAddress)
         return { accessToken, refreshToken: rawRefreshToken };
     }
 
