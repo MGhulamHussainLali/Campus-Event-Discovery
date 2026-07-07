@@ -1,8 +1,8 @@
-import { IDatabase } from '../interfaces/DBConnection.ts'
-import UserRepository from '../repositories/UserRepository.ts'
-import OrganizerRepository from '../repositories/OrganizerRepository.ts'
-import User from '../models/user.ts';
-import Organizer from '../models/organizer.ts';
+import { IDatabase } from '../interfaces/DBConnection'
+import UserRepository from '../repositories/UserRepository'
+import OrganizerRepository from '../repositories/OrganizerRepository'
+import User from '../models/user';
+import Organizer from '../models/organizer';
 
 class OrganizerService {
     constructor(
