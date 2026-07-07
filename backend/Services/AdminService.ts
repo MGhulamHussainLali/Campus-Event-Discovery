@@ -12,15 +12,15 @@ class AdminService {
     ) {
 
     }
-    async createAdminUser(userData: User, adminData: Admin): Promise<boolean> {
+    async createAdminUser(userData: User, adminData: Admin): Promise<number> {
 
         const client = await this.db.getClient();
         try {
             await client.query("BEGIN");
-            await this.userRepository.create(userData, client);
-            await this.adminRepository.create(adminData, client);
+            const id=await this.userRepository.create(userData, client);
+            await this.adminRepository.create(adminData,id, client);
             await client.query("COMMIT")
-            return true;
+            return id;
         }
         catch (error: any) 
         {

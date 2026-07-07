@@ -1,26 +1,26 @@
 import { IDatabase } from '../interfaces/DBConnection'
 import UserRepository from '../repositories/UserRepository'
-import OrganizerRepository from '../repositories/OrganizerRepository.ts'
+import StudentRepository from '../repositories/StudentRepository'
 import User from '../models/user';
-import Organizer from '../models/organizer';
+import Student from '../models/student';
 
-class OrganizerService {
+class StudentService {
     constructor(
         private db: IDatabase,
         private userRepository: UserRepository,
-        private organizerRepository: OrganizerRepository
+        private studentRepository: StudentRepository
     ) {
 
     }
-    async createOrganizerUser(userData: User, organizerData: Organizer): Promise<boolean> {
+    async createStudentUser(userData: User, studentData: Student): Promise<number> {
 
         const client = await this.db.getClient();
         try {
             await client.query("BEGIN");
-            await this.userRepository.create(userData, client);
-            await this.organizerRepository.create(organizerData, client);
+            const id= await this.userRepository.create(userData, client);
+            await this.studentRepository.create(studentData, id, client);
             await client.query("COMMIT")
-            return true;
+            return id;
         }
         catch (error: any) 
         {
@@ -37,4 +37,4 @@ class OrganizerService {
 
 }
 
-export default OrganizerService
+export default StudentService

@@ -1,11 +1,13 @@
 import { IDatabase,IDatabaseClient } from "../interfaces/DBConnection"
 export type TokenType=
 {
+    id:number,
     userId:number,
     tokenHash:string,
     expiresAt:Date,
     userAgent:string|null,
     ipAddress:string|null,
+    revoked: boolean;
     createdAt:Date
 }
 

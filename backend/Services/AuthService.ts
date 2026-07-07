@@ -4,37 +4,191 @@ import crypto from 'crypto';
 import { IDatabase } from '../interfaces/DBConnection';
 import UserRepository from '../repositories/UserRepository';
 import { School } from '../models/student';
-// import EmailVerificationTokenRepository from '../repositories/EmailVerificationTokenRepository';
-// import RefreshTokenRepository from '../repositories/RefreshTokenRepository';
-// import PasswordResetTokenRepository from '../repositories/PasswordResetTokenRepository';
+import Organizer from '../models/organizer';
+import Student from '../models/student'
+import StudentService from './StudentService'
+import EmailVerificationTokenRepository from '../repositories/EmailVerificationTokenRepository';
+import RefreshTokenRepository from '../repositories/RefreshTokenRepository';
+import PasswordResetTokenRepository from '../repositories/PasswordResetTokenRepository';
 import User from '../models/user';
+import OrganizerService from './OrganizerService';
 
 
 class AuthService {
+    //later in env variables (in final code review)
+    private static readonly SALT_ROUNDS = 12;
     constructor(
         private db: IDatabase,
-        private userRepository: UserRepository
-        // private emailVerificationTokenRepository: EmailVerificationTokenRepository,
-        // private refresh RefreshTokenRepository,
-        // private passwordResetTokenReposTokenRepository:itory: PasswordResetTokenRepository
+        private userRepository: UserRepository,
+        private organizerService: OrganizerService,
+        private studentService: StudentService,
+        private emailVerificationTokenRepository: EmailVerificationTokenRepository,
+        private refreshTokenRepository: RefreshTokenRepository,
+        private passwordResetTokenRepository: PasswordResetTokenRepository
     ) {
 
     }
-    async signupStudent(name: string, email: string, password: string, rollNumber: number, school: School): Promise<Student | null> {
+    async signupStudent(name: string, email: string, password: string, rollNumber: number, school: School): Promise<boolean> {
         const exists: boolean = await this.userRepository.existsByEmail(email);
-
         if (exists) {
             throw new Error("Email already exists")
-
         }
 
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        const newUser = new User(0, name, email, hashedPassword, null, 'student', 'pending', false, new Date()
+        const hashedPassword = await bcrypt.hash(password, AuthService.SALT_ROUNDS);
+        const newUser = new User(0, name, email, hashedPassword, null, 'student', 'pending', false, new Date());
+        try {
+            const newStudent = new Student(0, name, email, hashedPassword, null, 'pending', false, new Date(), rollNumber, school)
+            const id = await this.studentService.createStudentUser(newUser, newStudent);
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await this.emailVerificationTokenRepository.create(id, tokenHash, expiresAt);
+            return true;
+        }
+        catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
+    async signupOrganizer(name: string, email: string, password: string, organizationId: number): Promise<boolean> {
+        const exists: boolean = await this.userRepository.existsByEmail(email);
+        if (exists) {
+            throw new Error("Email already exists");
+        }
+
+        const hashedPassword = await bcrypt.hash(password, AuthService.SALT_ROUNDS);
+        const newUser = new User(0, name, email, hashedPassword, null, 'organizer', 'pending', false, new Date());
+        try {
+            const newOrganizer = new Organizer(0, name, email, hashedPassword, null, 'pending', false, new Date(), organizationId);
+            const id = await this.organizerService.createOrganizerUser(newUser, newOrganizer);
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await this.emailVerificationTokenRepository.create(id, tokenHash, expiresAt);
+            return true;
+        }
+        catch (error: any) {
+            throw new Error(error.message);
+        }
+    }
+
+    async login(email: string, password: string, userAgent: string | null, ipAddress: string | null): Promise<{ accessToken: string, refreshToken: string }> {
+        const user = await this.userRepository.findByEmail(email);
+        if (!user) {
+            throw new Error("Invalid email or password")
+        }
+        const hashed_password = user.getHashedPassword();
+        const passwordMatch = await bcrypt.compare(password, hashed_password);
+        if (!passwordMatch) {
+            throw new Error("Invalid email or password");
+        }
+        if (!user.getEmailVerified()) {
+            throw new Error("Email not verified")
+        }
+        if (user.getAccountStatus() !== 'approved') {
+            throw new Error("Account not approved");
+        }
+
+        const accessToken = jwt.sign(
+            { id: user.getId(), role: user.getRole() },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '15m' }
         );
-        const client = await this.db.getClient();
-        await this.userRepository.create(newUser, client);
+        const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+        const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await this.refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt, userAgent, ipAddress);
+        return { accessToken, refreshToken: rawRefreshToken };
+    }
 
+    async verifyEmail(rawToken: string): Promise<boolean> {
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const tokenRow = await this.emailVerificationTokenRepository.findByTokenHash(tokenHash);
+        if (!tokenRow) {
+            throw new Error("Invalid or expired token");
+        }
+        if (tokenRow.expiresAt < new Date()) {
+            throw new Error("Invalid or expired token");
+        }
+        await this.userRepository.updateEmailVerified(tokenRow.userId, true);
+        await this.emailVerificationTokenRepository.delete(tokenRow.id);
+        return true;
+    }
 
+    async refreshToken(rawRefreshToken: string): Promise<{ accessToken: string, refreshToken: string }> {
+        const tokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+        const tokenRow = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+        if (!tokenRow || tokenRow.revoked || tokenRow.expiresAt < new Date()) {
+            throw new Error("Invalid or expired refresh token");
+        }
+        const user = await this.userRepository.findById(tokenRow.userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
+        await this.refreshTokenRepository.revoke(tokenRow.id);
+        const accessToken = jwt.sign(
+            { id: user.getId(), role: user.getRole() },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '15m' }
+        );
+        const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
+        const newRefreshTokenHash = crypto.createHash('sha256').update(newRawRefreshToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await this.refreshTokenRepository.create(user.getId(), newRefreshTokenHash, expiresAt, tokenRow.userAgent, tokenRow.ipAddress);
+        return { accessToken, refreshToken: newRawRefreshToken };
+    }
+
+    async logout(rawRefreshToken: string): Promise<boolean> {
+        const tokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+        const tokenRow = await this.refreshTokenRepository.findByTokenHash(tokenHash);
+        if (!tokenRow) {
+            return true;
+        }
+        await this.refreshTokenRepository.revoke(tokenRow.id);
+        return true;
+    }
+    async logoutAllDevices(userId: number): Promise<boolean> {
+        await this.refreshTokenRepository.revokeAllForUser(userId);
+        return true;
+    }
+    async requestPasswordReset(email: string): Promise<boolean> {
+        const user = await this.userRepository.findByEmail(email);
+        if (!user) {
+            return true;
+        }
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        await this.passwordResetTokenRepository.create(user.getId(), tokenHash, expiresAt);
+        // email sending pending
+        return true;
+    }
+
+    async resetPassword(rawToken: string, newPassword: string): Promise<boolean> {
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const tokenRow = await this.passwordResetTokenRepository.findByTokenHash(tokenHash);
+        if (!tokenRow || tokenRow.used || tokenRow.expiresAt < new Date()) {
+            throw new Error("Invalid or expired token");
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, AuthService.SALT_ROUNDS);
+        await this.userRepository.updatePassword(tokenRow.userId, hashedPassword);
+        await this.passwordResetTokenRepository.markUsed(tokenRow.id);
+        await this.refreshTokenRepository.revokeAllForUser(tokenRow.userId);
+        return true;
+    }
+    async changePassword(userId: number, oldPassword: string, newPassword: string): Promise<boolean> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
+        const passwordMatch = await bcrypt.compare(oldPassword, user.getHashedPassword());
+        if (!passwordMatch) {
+            throw new Error("Incorrect current password");
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, AuthService.SALT_ROUNDS);
+        await this.userRepository.updatePassword(userId, hashedPassword);
+        return true;
     }
 }
 export default AuthService

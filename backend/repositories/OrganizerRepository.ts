@@ -32,12 +32,12 @@ class OrganizerRepository {
         );
     }
 
-    async create(organizer: Organizer, client?: IDatabaseClient): Promise<boolean> {
+    async create(organizer: Organizer,id:number, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
             const result = await db.query(
                 "INSERT INTO organizer (organizer_id, organization_id) VALUES ($1,$2) RETURNING *",
-                [organizer.getOrganizerId(), organizer.getOrganizationId()]
+                [id, organizer.getOrganizationId()]
             );
             return (result.rowCount ?? 0) > 0;
         }

@@ -34,12 +34,12 @@ class StudentRepository {
         );
     }
 
-    async create(student: Student, client?: IDatabaseClient): Promise<boolean> {
+    async create(student: Student,id:number, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
             const result = await db.query(
                 "INSERT INTO student (student_id, roll_number, school) VALUES ($1,$2,$3) RETURNING *",
-                [student.getStudentId(), student.getRollNumber(), student.getSchool()]
+                [id, student.getRollNumber(), student.getSchool()]
             );
             return (result.rowCount ?? 0) > 0;
         }

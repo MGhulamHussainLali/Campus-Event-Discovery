@@ -35,12 +35,12 @@ class AdminRepository
            
         ); 
     }
-    async create(admin:Admin, client?:IDatabaseClient):Promise<boolean>
+    async create(admin:Admin,id:number, client?:IDatabaseClient):Promise<boolean>
     {
         const db=client??this.db;
         try
         {
-            const result=await db.query("INSERT INTO admin (admin_id,is_super_admin,created_by_admin_id) VALUES($1,$2,$3) RETURNING admin_id",[admin.getAdminId(),admin.getIsSuperAdmin(),admin.getCreatedByAdminId()])
+            const result=await db.query("INSERT INTO admin (admin_id,is_super_admin,created_by_admin_id) VALUES($1,$2,$3) RETURNING admin_id",[id,admin.getIsSuperAdmin(),admin.getCreatedByAdminId()])
             return (result.rowCount??0)>0;
         }
         catch(err:any)
