@@ -100,6 +100,10 @@ CREATE TABLE Student_Interest (
 -- ----------------------------
 -- EVENTS
 -- ----------------------------
+-- Denormalized snapshot: captures the organizer's organization_id at event creation time.
+-- Intentionally NOT derived via Organizer.organization_id join, since an organizer
+-- switching organizations later should not retroactively change attribution of past events.
+-- organization_id INTEGER NOT NULL REFERENCES Organization(organization_id),
 
 CREATE TABLE Event (
     id SERIAL PRIMARY KEY,
@@ -107,6 +111,7 @@ CREATE TABLE Event (
     description TEXT NOT NULL,
     category_id INTEGER NOT NULL REFERENCES Category(id),
     organizer_id INTEGER NOT NULL REFERENCES Organiser(organiser_id),
+    organization_id INTEGER NOT NULL REFERENCES Organization(organization_id)
     venue_name TEXT,
     address TEXT,
     poster_url TEXT,
