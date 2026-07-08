@@ -14,23 +14,26 @@ import User from '../models/user';
 import OrganizerService from './OrganizerService';
 import LoginAttemptRepository from '../repositories/LoginAttemptRepository';
 
+import EmailService from './EmailService';
+
 class AuthService {
-    //later in env variables (in final code review)
     private static readonly SALT_ROUNDS = 12;
     constructor(
         private db: IDatabase,
-        private loginAttemptRepository:LoginAttemptRepository,
+        private loginAttemptRepository: LoginAttemptRepository,
         private userRepository: UserRepository,
         private organizerService: OrganizerService,
         private studentService: StudentService,
         private emailVerificationTokenRepository: EmailVerificationTokenRepository,
         private refreshTokenRepository: RefreshTokenRepository,
         private passwordResetTokenRepository: PasswordResetTokenRepository,
-        private maxAttempts:number=5,
-        private loginMinutesAllowed:number=5
+        private emailService: EmailService,
+        private maxAttempts: number = 5,
+        private loginMinutesAllowed: number = 5
     ) {
 
     }
+
     async signupStudent(name: string, email: string, password: string, rollNumber: number, school: School): Promise<boolean> {
         const exists: boolean = await this.userRepository.existsByEmail(email);
         if (exists) {
@@ -46,6 +49,7 @@ class AuthService {
             const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
             await this.emailVerificationTokenRepository.create(id, tokenHash, expiresAt);
+            await this.emailService.sendVerificationEmail(email, rawToken);
             return true;
         }
         catch (error: any) {
@@ -68,6 +72,7 @@ class AuthService {
             const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
             await this.emailVerificationTokenRepository.create(id, tokenHash, expiresAt);
+            await this.emailService.sendVerificationEmail(email, rawToken);
             return true;
         }
         catch (error: any) {
@@ -164,6 +169,7 @@ class AuthService {
         return true;
     }
     async requestPasswordReset(email: string): Promise<boolean> {
+        
         const user = await this.userRepository.findByEmail(email);
         if (!user) {
             return true;
@@ -172,7 +178,7 @@ class AuthService {
         const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
         await this.passwordResetTokenRepository.create(user.getId(), tokenHash, expiresAt);
-        // email sending pending
+        await this.emailService.sendPasswordResetEmail(email, rawToken);
         return true;
     }
 
