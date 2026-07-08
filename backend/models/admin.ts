@@ -1,4 +1,4 @@
-import User from './user.ts'
+import User from './user'
 
 class Admin extends User {
 constructor(
