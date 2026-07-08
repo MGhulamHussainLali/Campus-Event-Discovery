@@ -12,7 +12,7 @@ class Category
     {
         return this.id;
     }
-    getname()
+    getName()
     {
         return this.name;
     }
