@@ -72,7 +72,7 @@ const categoryService = new CategoryService(categoryRepository);
 const interestService = new InterestService(interestRepository, studentInterestRepository);
 const organizationService = new OrganizationService(organizationRepository);
 const eventService = new EventService(eventRepository, categoryRepository);
-const registrationService = new RegistrationService(registrationRepository, eventRepository);
+const registrationService = new RegistrationService(db, registrationRepository, eventRepository);
 
 // Controllers
 const authController = new AuthController(authService);

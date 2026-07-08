@@ -2,9 +2,11 @@ import RegistrationRepository from '../repositories/RegistrationRepository';
 import EventRepository from '../repositories/EventRepository';
 import Registration, { RegistrationStatus } from '../models/registration';
 import { EventStatus } from '../models/event';
+import { IDatabase } from '../interfaces/DBConnection';
 
 class RegistrationService {
     constructor(
+        private db: IDatabase,
         private registrationRepository: RegistrationRepository,
         private eventRepository: EventRepository
     ) {}
@@ -50,17 +52,29 @@ class RegistrationService {
         }
 
         const wasGoing = existing.getStatus() === RegistrationStatus.GOING;
-        const result = await this.registrationRepository.updateStatus(existing.getId(), RegistrationStatus.CANCELLED);
+        const client = await this.db.getClient();
+        try {
+            await client.query("BEGIN");
+            const result = await this.registrationRepository.updateStatus(existing.getId(), RegistrationStatus.CANCELLED, client);
 
-        if (wasGoing) {
-            const nextInLine = await this.registrationRepository.getOldestWaitlisted(eventId);
-            if (nextInLine) {
-                await this.registrationRepository.updateStatus(nextInLine.getId(), RegistrationStatus.GOING);
-                // notification to promoted student deferred to Notifications module
+            if (wasGoing) {
+                const nextInLine = await this.registrationRepository.getOldestWaitlisted(eventId, client);
+                if (nextInLine) {
+                    await this.registrationRepository.updateStatus(nextInLine.getId(), RegistrationStatus.GOING, client);
+                    // notification to promoted student deferred to Notifications module
+                }
             }
-        }
 
-        return result;
+            await client.query("COMMIT");
+            return result;
+        }
+        catch (error: any) {
+            await client.query("ROLLBACK");
+            throw error;
+        }
+        finally {
+            client.release();
+        }
     }
 
     async getMyRegistrations(studentId: number): Promise<Registration[] | null> {
