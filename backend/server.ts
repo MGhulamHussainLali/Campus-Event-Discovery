@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { createApp } from './app';
 import PostgresDatabase from './db/PostgresDatabase';
 
+// Repositories
 import UserRepository from './repositories/UserRepository';
 import StudentRepository from './repositories/StudentRepository';
 import OrganizerRepository from './repositories/OrganizerRepository';
@@ -17,7 +18,15 @@ import StudentInterestRepository from './repositories/StudentInterestRepository'
 import OrganizationRepository from './repositories/OrganizationRepository';
 import EventRepository from './repositories/EventRepository';
 import RegistrationRepository from './repositories/RegistrationRepository';
+import PlatformSettingsRepository from './repositories/PlatformSettingsRepository';
+import AllowedDomainsRepository from './repositories/AllowedDomainsRepository';
+import AccountStatusLogRepository from './repositories/AccountStatusLogRepository';
+import EventStatusLogRepository from './repositories/EventStatusLogRepository';
+import PlatformSettingsLogRepository from './repositories/PlatformSettingsLogRepository';
+import NotificationRepository from './repositories/NotificationRepository';
+import PushSubscriptionRepository from './repositories/PushSubscriptionRepository';
 
+// Services
 import StudentService from './services/StudentService';
 import OrganizerService from './services/OrganizerService';
 import AuthService from './services/AuthService';
@@ -27,13 +36,22 @@ import InterestService from './services/InterestService';
 import OrganizationService from './services/OrganizationService';
 import EventService from './services/EventService';
 import RegistrationService from './services/RegistrationService';
+import PlatformSettingsService from './services/PlatformSettingsService';
+import AdminActionService from './services/AdminActionService';
+import NotificationService from './services/NotificationService';
+import AuditLogService from './services/AuditLogService';
 
+// Controllers
 import AuthController from './controllers/AuthController';
 import CategoryController from './controllers/CategoryController';
 import InterestController from './controllers/InterestController';
 import OrganizationController from './controllers/OrganizationController';
 import EventController from './controllers/EventController';
 import RegistrationController from './controllers/RegistrationController';
+import PlatformSettingsController from './controllers/PlatformSettingsController';
+import AdminActionController from './controllers/AdminActionController';
+import NotificationController from './controllers/NotificationController';
+import AuditLogController from './controllers/AuditLogController';
 
 const db = new PostgresDatabase();
 
@@ -52,6 +70,14 @@ const studentInterestRepository = new StudentInterestRepository(db);
 const organizationRepository = new OrganizationRepository(db);
 const eventRepository = new EventRepository(db);
 const registrationRepository = new RegistrationRepository(db);
+const platformSettingsRepository = new PlatformSettingsRepository(db);
+const allowedDomainsRepository = new AllowedDomainsRepository(db);
+const accountStatusLogRepository = new AccountStatusLogRepository(db);
+const eventStatusLogRepository = new EventStatusLogRepository(db);
+const platformSettingsLogRepository = new PlatformSettingsLogRepository(db);
+const notificationRepository = new NotificationRepository(db);
+const pushSubscriptionRepository = new PushSubscriptionRepository(db);
+
 
 // Services
 const studentService = new StudentService(db, userRepository, studentRepository);
@@ -61,6 +87,7 @@ const authService = new AuthService(
     db,
     loginAttemptRepository,
     userRepository,
+    adminRepository,
     organizerService,
     studentService,
     emailVerificationTokenRepository,
@@ -73,6 +100,10 @@ const interestService = new InterestService(interestRepository, studentInterestR
 const organizationService = new OrganizationService(organizationRepository);
 const eventService = new EventService(eventRepository, categoryRepository);
 const registrationService = new RegistrationService(db, registrationRepository, eventRepository);
+const platformSettingsService = new PlatformSettingsService(platformSettingsRepository, allowedDomainsRepository, platformSettingsLogRepository);
+const adminActionService = new AdminActionService(db, userRepository, adminRepository, accountStatusLogRepository, refreshTokenRepository);
+const notificationService = new NotificationService(notificationRepository, pushSubscriptionRepository);
+const auditLogService = new AuditLogService(accountStatusLogRepository, eventStatusLogRepository, platformSettingsLogRepository);
 
 // Controllers
 const authController = new AuthController(authService);
@@ -81,6 +112,10 @@ const interestController = new InterestController(interestService);
 const organizationController = new OrganizationController(organizationService);
 const eventController = new EventController(eventService);
 const registrationController = new RegistrationController(registrationService);
+const platformSettingsController = new PlatformSettingsController(platformSettingsService);
+const adminActionController = new AdminActionController(adminActionService);
+const notificationController = new NotificationController(notificationService);
+const auditLogController = new AuditLogController(auditLogService);
 
 const app = createApp(
     authController,
@@ -88,7 +123,11 @@ const app = createApp(
     interestController,
     organizationController,
     eventController,
-    registrationController
+    registrationController,
+    platformSettingsController,
+    adminActionController,
+    notificationController,
+    auditLogController
 );
 
 const PORT = process.env.PORT ?? 3000;

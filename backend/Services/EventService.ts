@@ -2,11 +2,14 @@ import EventRepository, { EventUpdateFields } from '../repositories/EventReposit
 import CategoryRepository from '../repositories/CategoryRepository';
 import Event, { EventStatus } from '../models/event';
 
+import PlatformSettingsService from './PlatformSettingsService';
+
 class EventService {
     constructor(
         private eventRepository: EventRepository,
-        private categoryRepository: CategoryRepository
-    ) {}
+        private categoryRepository: CategoryRepository,
+        private platformSettingsService: PlatformSettingsService
+    ) { }
 
     async createEvent(
         organizerId: number,
@@ -28,10 +31,14 @@ class EventService {
         if (endTime <= startTime) {
             throw new Error("End time must be after start time");
         }
+
+        const requireApproval = await this.platformSettingsService.getSetting('require_event_approval');
+        const status = (requireApproval === false) ? EventStatus.APPROVED : EventStatus.PENDING;
+
         const event = new Event(
             0, title, description, categoryId, organizerId, organizationId,
             venueName, address, posterUrl, startTime, endTime, maxCapacity,
-            EventStatus.PENDING, new Date(), new Date()
+            status, new Date(), new Date()
         );
         return await this.eventRepository.create(event);
     }
@@ -40,7 +47,7 @@ class EventService {
         return await this.eventRepository.findById(id);
     }
 
-    async searchEvents(filters?: {categoryId?: number, status?: EventStatus, organizerId?: number, organizationId?: number, titleSearch?: string}): Promise<Event[] | null> {
+    async searchEvents(filters?: { categoryId?: number, status?: EventStatus, organizerId?: number, organizationId?: number, titleSearch?: string }): Promise<Event[] | null> {
         return await this.eventRepository.findAll(filters);
     }
 

@@ -28,3 +28,11 @@ export function authorize(...roles: string[]) {
     }
 
 }
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+    const user = (req as any).user;
+    if (!user || !user.isSuperAdmin) {
+        res.status(403).json({ error: 'Super admin access required' });
+        return;
+    }
+    next();
+}

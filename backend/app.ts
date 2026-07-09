@@ -8,12 +8,21 @@ import interestRoutes from './routes/interest';
 import organizationRoutes from './routes/organization';
 import eventRoutes from './routes/event';
 import registrationRoutes from './routes/registration';
+import settingsRoutes from './routes/settings';
+import adminRoutes from './routes/admin';
+import notificationRoutes from './routes/notification';
+import auditRoutes from './routes/audit';
+
 import AuthController from './controllers/AuthController';
 import CategoryController from './controllers/CategoryController';
 import InterestController from './controllers/InterestController';
 import OrganizationController from './controllers/OrganizationController';
 import EventController from './controllers/EventController';
 import RegistrationController from './controllers/RegistrationController';
+import PlatformSettingsController from './controllers/PlatformSettingsController';
+import AdminActionController from './controllers/AdminActionController';
+import NotificationController from './controllers/NotificationController';
+import AuditLogController from './controllers/AuditLogController';
 
 export function createApp(
     authController: AuthController,
@@ -21,7 +30,11 @@ export function createApp(
     interestController: InterestController,
     organizationController: OrganizationController,
     eventController: EventController,
-    registrationController: RegistrationController
+    registrationController: RegistrationController,
+    platformSettingsController: PlatformSettingsController,
+    adminActionController: AdminActionController,
+    notificationController: NotificationController,
+    auditLogController: AuditLogController
 ): Express {
     const app = express();
 
@@ -35,6 +48,10 @@ export function createApp(
     app.use('/organizations', organizationRoutes(organizationController));
     app.use('/events', eventRoutes(eventController));
     app.use('/', registrationRoutes(registrationController));
+    app.use('/settings', settingsRoutes(platformSettingsController));
+    app.use('/admin', adminRoutes(adminActionController));
+    app.use('/notifications', notificationRoutes(notificationController));
+    app.use('/audit', auditRoutes(auditLogController));
 
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
         res.status(err.status ?? 500).json({ error: err.message ?? 'Internal server error' });

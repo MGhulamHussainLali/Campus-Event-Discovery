@@ -13,8 +13,9 @@ import PasswordResetTokenRepository from '../repositories/PasswordResetTokenRepo
 import User from '../models/user';
 import OrganizerService from './OrganizerService';
 import LoginAttemptRepository from '../repositories/LoginAttemptRepository';
-
+import AdminRepository from '../repositories/AdminRepository';
 import EmailService from './EmailService';
+import PlatformSettingsService from './PlatformSettingsService';
 
 class AuthService {
     private static readonly SALT_ROUNDS = 12;
@@ -22,12 +23,14 @@ class AuthService {
         private db: IDatabase,
         private loginAttemptRepository: LoginAttemptRepository,
         private userRepository: UserRepository,
+        private adminRepository: AdminRepository,
         private organizerService: OrganizerService,
         private studentService: StudentService,
         private emailVerificationTokenRepository: EmailVerificationTokenRepository,
         private refreshTokenRepository: RefreshTokenRepository,
         private passwordResetTokenRepository: PasswordResetTokenRepository,
         private emailService: EmailService,
+        private platformSettingsService: PlatformSettingsService,
         private maxAttempts: number = 5,
         private loginMinutesAllowed: number = 5
     ) {
@@ -40,10 +43,13 @@ class AuthService {
             throw new Error("Email already exists")
         }
 
+        const requireApproval = await this.platformSettingsService.getSetting('require_student_approval');
+        const accountStatus = (requireApproval === false) ? 'approved' : 'pending';
+
         const hashedPassword = await bcrypt.hash(password, AuthService.SALT_ROUNDS);
-        const newUser = new User(0, name, email, hashedPassword, null, 'student', 'pending', false, new Date());
+        const newUser = new User(0, name, email, hashedPassword, null, 'student', accountStatus, false, new Date());
         try {
-            const newStudent = new Student(0, name, email, hashedPassword, null, 'pending', false, new Date(), rollNumber, school)
+            const newStudent = new Student(0, name, email, hashedPassword, null, accountStatus, false, new Date(), rollNumber, school)
             const id = await this.studentService.createStudentUser(newUser, newStudent);
             const rawToken = crypto.randomBytes(32).toString('hex');
             const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -62,9 +68,11 @@ class AuthService {
         if (exists) {
             throw new Error("Email already exists");
         }
+        const requireApproval = await this.platformSettingsService.getSetting('require_student_approval');
+        const accountStatus = (requireApproval === false) ? 'approved' : 'pending';
 
         const hashedPassword = await bcrypt.hash(password, AuthService.SALT_ROUNDS);
-        const newUser = new User(0, name, email, hashedPassword, null, 'organizer', 'pending', false, new Date());
+        const newUser = new User(0, name, email, hashedPassword, null, 'organizer', accountStatus, false, new Date());
         try {
             const newOrganizer = new Organizer(0, name, email, hashedPassword, null, 'pending', false, new Date(), organizationId);
             const id = await this.organizerService.createOrganizerUser(newUser, newOrganizer);
@@ -105,8 +113,14 @@ class AuthService {
             throw new Error("Account not approved");
         }
 
+        let isSuperAdmin: boolean | undefined = undefined;
+        if (user.getRole() === 'admin') {
+            const admin = await this.adminRepository.findById(user.getId());
+            isSuperAdmin = admin?.getIsSuperAdmin();
+        }
+
         const accessToken = jwt.sign(
-            { id: user.getId(), role: user.getRole() },
+            { id: user.getId(), role: user.getRole(), isSuperAdmin },
             process.env.JWT_SECRET as string,
             { expiresIn: '15m' }
         );
