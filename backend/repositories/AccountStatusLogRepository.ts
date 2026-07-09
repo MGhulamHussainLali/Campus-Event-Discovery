@@ -1,4 +1,5 @@
-import { IDatabaseClient } from "../interfaces/DBConnection";
+// AccountStatusLogRepository.ts
+import { IDatabase, IDatabaseClient } from "../interfaces/DBConnection";
 
 export type AccountStatusLog = {
     id: number;
@@ -10,25 +11,13 @@ export type AccountStatusLog = {
     createdAt: Date;
 };
 
-const fieldMap: Record<string, string> = {
-    userId: 'user_id',
-    changedByAdminId: 'changed_by_admin_id',
-    oldStatus: 'old_status',
-    newStatus: 'new_status',
-    reason: 'reason'
-};
-
-
-
 class AccountStatusLogRepository {
     constructor(
-        private db: IDatabaseClient
+        private db: IDatabase
     ) {
 
     }
-    // AccountStatusLogRepository
     private mapRow(row: any): AccountStatusLog {
-        
         return {
             id: row.id,
             userId: row.user_id,
@@ -40,7 +29,7 @@ class AccountStatusLogRepository {
         };
     }
 
-    async create(userId: number, changedByAdminId: number, oldStatus: 'pending' | 'approved' | 'rejected' | 'suspended', newStatus: 'pending' | 'approved' | 'rejected' | 'suspended', reason: string, client?: IDatabaseClient) {
+    async create(userId: number, changedByAdminId: number, oldStatus: 'pending' | 'approved' | 'rejected' | 'suspended' | null, newStatus: 'pending' | 'approved' | 'rejected' | 'suspended', reason: string | null, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db
         try {
             const result = await db.query("INSERT INTO Account_Status_Log (user_id,changed_by_admin_id,old_status,new_status,reason) VALUES ($1,$2,$3,$4,$5) RETURNING *", [userId, changedByAdminId, oldStatus, newStatus, reason])
@@ -50,15 +39,18 @@ class AccountStatusLogRepository {
             throw new Error(error.message)
         }
     }
-    async findByUserId(userId: number, client?: IDatabaseClient) {
+    async findByUserId(userId: number, client?: IDatabaseClient): Promise<AccountStatusLog[] | null> {
         const db = client ?? this.db;
         try {
-            const result = await db.query("SELECT * FROM Account_Status_Log_Repository ")
+            const result = await db.query("SELECT * FROM Account_Status_Log WHERE user_id=$1 ORDER BY created_at DESC", [userId])
+            if ((result.rowCount ?? 0) === 0) {
+                return null;
+            }
+            return result.rows.map((row: any) => this.mapRow(row));
         }
         catch (error: any) {
-
+            throw new Error(error.message)
         }
     }
 }
 export default AccountStatusLogRepository
-
