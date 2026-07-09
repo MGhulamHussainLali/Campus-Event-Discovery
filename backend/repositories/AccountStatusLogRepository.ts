@@ -1,0 +1,64 @@
+import { IDatabaseClient } from "../interfaces/DBConnection";
+
+export type AccountStatusLog = {
+    id: number;
+    userId: number;
+    changedByAdminId: number;
+    oldStatus: string | null;
+    newStatus: string;
+    reason: string | null;
+    createdAt: Date;
+};
+
+const fieldMap: Record<string, string> = {
+    userId: 'user_id',
+    changedByAdminId: 'changed_by_admin_id',
+    oldStatus: 'old_status',
+    newStatus: 'new_status',
+    reason: 'reason'
+};
+
+
+
+class AccountStatusLogRepository {
+    constructor(
+        private db: IDatabaseClient
+    ) {
+
+    }
+    // AccountStatusLogRepository
+    private mapRow(row: any): AccountStatusLog {
+        
+        return {
+            id: row.id,
+            userId: row.user_id,
+            changedByAdminId: row.changed_by_admin_id,
+            oldStatus: row.old_status,
+            newStatus: row.new_status,
+            reason: row.reason,
+            createdAt: row.created_at
+        };
+    }
+
+    async create(userId: number, changedByAdminId: number, oldStatus: 'pending' | 'approved' | 'rejected' | 'suspended', newStatus: 'pending' | 'approved' | 'rejected' | 'suspended', reason: string, client?: IDatabaseClient) {
+        const db = client ?? this.db
+        try {
+            const result = await db.query("INSERT INTO Account_Status_Log (user_id,changed_by_admin_id,old_status,new_status,reason) VALUES ($1,$2,$3,$4,$5) RETURNING *", [userId, changedByAdminId, oldStatus, newStatus, reason])
+            return (result.rowCount ?? 0) > 0
+        }
+        catch (error: any) {
+            throw new Error(error.message)
+        }
+    }
+    async findByUserId(userId: number, client?: IDatabaseClient) {
+        const db = client ?? this.db;
+        try {
+            const result = await db.query("SELECT * FROM Account_Status_Log_Repository ")
+        }
+        catch (error: any) {
+
+        }
+    }
+}
+export default AccountStatusLogRepository
+
