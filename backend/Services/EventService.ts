@@ -1,15 +1,24 @@
+// EventService.ts
+import { IDatabase } from '../interfaces/DBConnection';
 import EventRepository, { EventUpdateFields } from '../repositories/EventRepository';
 import CategoryRepository from '../repositories/CategoryRepository';
-import Event, { EventStatus } from '../models/event';
-
+import EventStatusLogRepository from '../repositories/EventStatusLogRepository';
+import RegistrationRepository from '../repositories/RegistrationRepository';
 import PlatformSettingsService from './PlatformSettingsService';
+import NotificationService from './NotificationService';
+import Event, { EventStatus } from '../models/event';
+import { NotificationType } from '../models/notification';
 
 class EventService {
     constructor(
+        private db: IDatabase,
         private eventRepository: EventRepository,
         private categoryRepository: CategoryRepository,
-        private platformSettingsService: PlatformSettingsService
-    ) { }
+        private eventStatusLogRepository: EventStatusLogRepository,
+        private registrationRepository: RegistrationRepository,
+        private platformSettingsService: PlatformSettingsService,
+        private notificationService: NotificationService
+    ) {}
 
     async createEvent(
         organizerId: number,
@@ -47,7 +56,7 @@ class EventService {
         return await this.eventRepository.findById(id);
     }
 
-    async searchEvents(filters?: { categoryId?: number, status?: EventStatus, organizerId?: number, organizationId?: number, titleSearch?: string }): Promise<Event[] | null> {
+    async searchEvents(filters?: {categoryId?: number, status?: EventStatus, organizerId?: number, organizationId?: number, titleSearch?: string}): Promise<Event[] | null> {
         return await this.eventRepository.findAll(filters);
     }
 
@@ -56,7 +65,28 @@ class EventService {
         if (!event) {
             throw new Error("Event not found");
         }
-        return await this.eventRepository.updateStatus(id, EventStatus.APPROVED);
+        const oldStatus = event.getStatus();
+        const client = await this.db.getClient();
+        try {
+            await client.query("BEGIN");
+            const result = await this.eventRepository.updateStatus(id, EventStatus.APPROVED, client);
+            await this.eventStatusLogRepository.create(id, adminId, oldStatus, EventStatus.APPROVED, null, client);
+            await client.query("COMMIT");
+
+            await this.notificationService.notify(
+                event.getOrganizerId(),
+                "Event approved",
+                `Your event "${event.getTitle()}" has been approved.`,
+                NotificationType.EVENT_APPROVED,
+                id
+            );
+            return result;
+        } catch (error: any) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async rejectEvent(id: number, adminId: number, reason: string): Promise<boolean> {
@@ -64,7 +94,28 @@ class EventService {
         if (!event) {
             throw new Error("Event not found");
         }
-        return await this.eventRepository.updateStatus(id, EventStatus.REJECTED);
+        const oldStatus = event.getStatus();
+        const client = await this.db.getClient();
+        try {
+            await client.query("BEGIN");
+            const result = await this.eventRepository.updateStatus(id, EventStatus.REJECTED, client);
+            await this.eventStatusLogRepository.create(id, adminId, oldStatus, EventStatus.REJECTED, reason, client);
+            await client.query("COMMIT");
+
+            await this.notificationService.notify(
+                event.getOrganizerId(),
+                "Event rejected",
+                `Your event "${event.getTitle()}" was rejected. Reason: ${reason}`,
+                NotificationType.EVENT_REJECTED,
+                id
+            );
+            return result;
+        } catch (error: any) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async cancelEvent(id: number, organizerId: number): Promise<boolean> {
@@ -75,7 +126,35 @@ class EventService {
         if (event.getOrganizerId() !== organizerId) {
             throw new Error("Not authorized to cancel this event");
         }
-        return await this.eventRepository.updateStatus(id, EventStatus.CANCELLED);
+        const oldStatus = event.getStatus();
+        const client = await this.db.getClient();
+        try {
+            await client.query("BEGIN");
+            const result = await this.eventRepository.updateStatus(id, EventStatus.CANCELLED, client);
+            await this.eventStatusLogRepository.create(id, organizerId, oldStatus, EventStatus.CANCELLED, null, client);
+            await client.query("COMMIT");
+
+            const attendees = await this.registrationRepository.findByEventId(id);
+            if (attendees) {
+                for (const registration of attendees) {
+                    if (registration.getStatus() === 'going' || registration.getStatus() === 'interested' || registration.getStatus() === 'waitlisted') {
+                        await this.notificationService.notify(
+                            registration.getStudentId(),
+                            "Event cancelled",
+                            `The event "${event.getTitle()}" you registered for has been cancelled.`,
+                            NotificationType.EVENT_CANCELLED,
+                            id
+                        );
+                    }
+                }
+            }
+            return result;
+        } catch (error: any) {
+            await client.query("ROLLBACK");
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async updateEvent(id: number, organizerId: number, fields: EventUpdateFields): Promise<boolean> {

@@ -42,6 +42,14 @@ class AuthService {
         if (exists) {
             throw new Error("Email already exists")
         }
+        const restrictToDomains = await this.platformSettingsService.getSetting('restrict_to_domains');
+        if (restrictToDomains === true) {
+            const allowedDomains = await this.platformSettingsService.getAllowedDomains();
+            const emailDomain = email.split('@')[1];
+            if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+                throw new Error("Email domain is not permitted for signup");
+            }
+        }
 
         const requireApproval = await this.platformSettingsService.getSetting('require_student_approval');
         const accountStatus = (requireApproval === false) ? 'approved' : 'pending';
@@ -68,13 +76,22 @@ class AuthService {
         if (exists) {
             throw new Error("Email already exists");
         }
-        const requireApproval = await this.platformSettingsService.getSetting('require_student_approval');
+        const restrictToDomains = await this.platformSettingsService.getSetting('restrict_to_domains');
+        if (restrictToDomains === true) {
+            const allowedDomains = await this.platformSettingsService.getAllowedDomains();
+            const emailDomain = email.split('@')[1];
+            if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+                throw new Error("Email domain is not permitted for signup");
+            }
+        }
+        const requireApproval = await this.platformSettingsService.getSetting('require_organizer_approval');
         const accountStatus = (requireApproval === false) ? 'approved' : 'pending';
 
         const hashedPassword = await bcrypt.hash(password, AuthService.SALT_ROUNDS);
         const newUser = new User(0, name, email, hashedPassword, null, 'organizer', accountStatus, false, new Date());
+
         try {
-            const newOrganizer = new Organizer(0, name, email, hashedPassword, null, 'pending', false, new Date(), organizationId);
+            const newOrganizer = new Organizer(0, name, email, hashedPassword, null, accountStatus, false, new Date(), organizationId);
             const id = await this.organizerService.createOrganizerUser(newUser, newOrganizer);
             const rawToken = crypto.randomBytes(32).toString('hex');
             const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -90,9 +107,8 @@ class AuthService {
 
     async login(email: string, password: string, userAgent: string | null, ipAddress: string | null): Promise<{ accessToken: string, refreshToken: string }> {
 
-        const attempts:number=await this.loginAttemptRepository.countRecentFailedAttempts(email,this.loginMinutesAllowed)
-        if (attempts>=this.maxAttempts)
-        {  
+        const attempts: number = await this.loginAttemptRepository.countRecentFailedAttempts(email, this.loginMinutesAllowed)
+        if (attempts >= this.maxAttempts) {
             throw new Error("Maximum number of Login Attempts failed. Try after some time");
         }
         const user = await this.userRepository.findByEmail(email);
@@ -102,8 +118,8 @@ class AuthService {
         const hashed_password = user.getHashedPassword();
         const passwordMatch = await bcrypt.compare(password, hashed_password);
         if (!passwordMatch) {
-            
-            await this.loginAttemptRepository.create(user.getId(),email,false,ipAddress)
+
+            await this.loginAttemptRepository.create(user.getId(), email, false, ipAddress)
             throw new Error("Invalid email or password");
         }
         if (!user.getEmailVerified()) {
@@ -128,7 +144,7 @@ class AuthService {
         const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await this.refreshTokenRepository.create(user.getId(), refreshTokenHash, expiresAt, userAgent, ipAddress);
-        await this.loginAttemptRepository.create(user.getId(),email,true,ipAddress)
+        await this.loginAttemptRepository.create(user.getId(), email, true, ipAddress)
         return { accessToken, refreshToken: rawRefreshToken };
     }
 
@@ -183,7 +199,7 @@ class AuthService {
         return true;
     }
     async requestPasswordReset(email: string): Promise<boolean> {
-        
+
         const user = await this.userRepository.findByEmail(email);
         if (!user) {
             return true;

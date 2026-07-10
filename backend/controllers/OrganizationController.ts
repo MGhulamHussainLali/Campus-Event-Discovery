@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
 import OrganizationService from '../services/OrganizationService';
+import OrganizationRepository from '../repositories/OrganizationRepository';
+import OrganizerRepository from '../repositories/OrganizerRepository';
 
 class OrganizationController {
-    constructor(private organizationService: OrganizationService) {}
+    constructor(private organizationService: OrganizationService,
+                private organizerRepository: OrganizerRepository
+    ) { }
 
     create = async (req: Request, res: Response) => {
         try {
@@ -37,11 +41,18 @@ class OrganizationController {
         }
     }
 
+    // OrganizationController.ts
     update = async (req: Request, res: Response) => {
         try {
             const id = Number(req.params.id);
             const fields = req.body;
-            const result = await this.organizationService.updateOrganization(id, fields);
+            const isAdmin = (req as any).user.role === 'admin';
+            let requesterOrganizationId: number | null = null;
+            if (!isAdmin) {
+                const organizer = await this.organizerRepository.findById((req as any).user.id);
+                requesterOrganizationId = organizer?.getOrganizationId() ?? null;
+            }
+            const result = await this.organizationService.updateOrganization(id, fields, requesterOrganizationId, isAdmin);
             res.status(200).json({ success: result });
         } catch (err: any) {
             res.status(400).json({ error: err.message });

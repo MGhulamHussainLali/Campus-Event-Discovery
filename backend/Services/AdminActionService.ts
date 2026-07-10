@@ -1,10 +1,13 @@
+// AdminActionService.ts
 import { IDatabase } from '../interfaces/DBConnection';
 import UserRepository from '../repositories/UserRepository';
 import AdminRepository from '../repositories/AdminRepository';
 import AccountStatusLogRepository from '../repositories/AccountStatusLogRepository';
 import RefreshTokenRepository from '../repositories/RefreshTokenRepository';
+import NotificationService from './NotificationService';
 import User from '../models/user';
 import Admin from '../models/admin';
+import { NotificationType } from '../models/notification';
 import bcrypt from 'bcrypt';
 
 class AdminActionService {
@@ -15,7 +18,8 @@ class AdminActionService {
         private userRepository: UserRepository,
         private adminRepository: AdminRepository,
         private accountStatusLogRepository: AccountStatusLogRepository,
-        private refreshTokenRepository: RefreshTokenRepository
+        private refreshTokenRepository: RefreshTokenRepository,
+        private notificationService: NotificationService
     ) {}
 
     async approveAccount(userId: number, adminId: number): Promise<boolean> {
@@ -30,6 +34,12 @@ class AdminActionService {
             const result = await this.userRepository.updateAccountStatus(userId, 'approved', client);
             await this.accountStatusLogRepository.create(userId, adminId, oldStatus, 'approved', null, client);
             await client.query("COMMIT");
+            await this.notificationService.notify(
+                userId,
+                "Account approved",
+                "Your account has been approved. You can now log in.",
+                NotificationType.ACCOUNT_APPROVED
+            );
             return result;
         } catch (error: any) {
             await client.query("ROLLBACK");
@@ -51,6 +61,12 @@ class AdminActionService {
             const result = await this.userRepository.updateAccountStatus(userId, 'rejected', client);
             await this.accountStatusLogRepository.create(userId, adminId, oldStatus, 'rejected', reason, client);
             await client.query("COMMIT");
+            await this.notificationService.notify(
+                userId,
+                "Account rejected",
+                `Your account application was rejected. Reason: ${reason}`,
+                NotificationType.ACCOUNT_REJECTED
+            );
             return result;
         } catch (error: any) {
             await client.query("ROLLBACK");
@@ -73,6 +89,12 @@ class AdminActionService {
             await this.accountStatusLogRepository.create(userId, adminId, oldStatus, 'suspended', reason, client);
             await this.refreshTokenRepository.revokeAllForUser(userId, client);
             await client.query("COMMIT");
+            await this.notificationService.notify(
+                userId,
+                "Account suspended",
+                `Your account has been suspended. Reason: ${reason}`,
+                NotificationType.ACCOUNT_SUSPENDED
+            );
             return result;
         } catch (error: any) {
             await client.query("ROLLBACK");

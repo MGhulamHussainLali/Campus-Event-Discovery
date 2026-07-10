@@ -6,7 +6,7 @@ class NotificationService {
     constructor(
         private notificationRepository: NotificationRepository,
         private pushSubscriptionRepository: PushSubscriptionRepository
-    ) {}
+    ) { }
 
     async notify(userId: number, title: string, message: string, type: NotificationType, relatedEventId: number | null = null): Promise<boolean> {
         const notification = new Notification(0, userId, title, message, type, relatedEventId, false, new Date());
@@ -20,7 +20,7 @@ class NotificationService {
     }
 
     async markAsRead(id: number, userId: number): Promise<boolean> {
-        return await this.notificationRepository.markRead(id);
+        return await this.notificationRepository.markRead(id, userId);
     }
 
     async markAllAsRead(userId: number): Promise<boolean> {

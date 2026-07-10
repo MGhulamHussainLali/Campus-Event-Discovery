@@ -2,7 +2,7 @@ import OrganizationRepository, { OrganizationUpdateFields } from '../repositorie
 import Organization from '../models/organization';
 
 class OrganizationService {
-    constructor(private organizationRepository: OrganizationRepository) {}
+    constructor(private organizationRepository: OrganizationRepository) { }
 
     async createOrganization(name: string, description: string, logoUrl: string | null): Promise<number> {
         const existing = await this.organizationRepository.findByName(name);
@@ -21,7 +21,17 @@ class OrganizationService {
         return await this.organizationRepository.findAll();
     }
 
-    async updateOrganization(id: number, fields: OrganizationUpdateFields): Promise<boolean> {
+    // OrganizationService.ts
+    async updateOrganization(id: number, fields: OrganizationUpdateFields, requesterOrganizerId: number | null, isAdmin: boolean): Promise<boolean> {
+        if (!isAdmin) {
+            if (requesterOrganizerId === null) {
+                throw new Error("Not authorized to update this organization");
+            }
+            // requesterOrganizerId here is actually the organizer's own organizationId, fetched by the controller
+            if (requesterOrganizerId !== id) {
+                throw new Error("Not authorized to update this organization");
+            }
+        }
         return await this.organizationRepository.update(id, fields);
     }
 

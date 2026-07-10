@@ -83,6 +83,7 @@ const pushSubscriptionRepository = new PushSubscriptionRepository(db);
 const studentService = new StudentService(db, userRepository, studentRepository);
 const organizerService = new OrganizerService(db, userRepository, organizerRepository);
 const emailService = new EmailService();
+const platformSettingsService = new PlatformSettingsService(platformSettingsRepository, allowedDomainsRepository, platformSettingsLogRepository);
 const authService = new AuthService(
     db,
     loginAttemptRepository,
@@ -93,23 +94,23 @@ const authService = new AuthService(
     emailVerificationTokenRepository,
     refreshTokenRepository,
     passwordResetTokenRepository,
-    emailService
+    emailService,
+    platformSettingsService
 );
+const notificationService = new NotificationService(notificationRepository, pushSubscriptionRepository);
 const categoryService = new CategoryService(categoryRepository);
 const interestService = new InterestService(interestRepository, studentInterestRepository);
 const organizationService = new OrganizationService(organizationRepository);
-const eventService = new EventService(eventRepository, categoryRepository);
-const registrationService = new RegistrationService(db, registrationRepository, eventRepository);
-const platformSettingsService = new PlatformSettingsService(platformSettingsRepository, allowedDomainsRepository, platformSettingsLogRepository);
-const adminActionService = new AdminActionService(db, userRepository, adminRepository, accountStatusLogRepository, refreshTokenRepository);
-const notificationService = new NotificationService(notificationRepository, pushSubscriptionRepository);
+const eventService = new EventService(db, eventRepository, categoryRepository, eventStatusLogRepository, registrationRepository, platformSettingsService, notificationService);
+const registrationService = new RegistrationService(db, registrationRepository, eventRepository, notificationService);
+const adminActionService = new AdminActionService(db, userRepository, adminRepository, accountStatusLogRepository, refreshTokenRepository, notificationService)
 const auditLogService = new AuditLogService(accountStatusLogRepository, eventStatusLogRepository, platformSettingsLogRepository);
 
 // Controllers
 const authController = new AuthController(authService);
 const categoryController = new CategoryController(categoryService);
 const interestController = new InterestController(interestService);
-const organizationController = new OrganizationController(organizationService);
+const organizationController = new OrganizationController(organizationService, organizerRepository);
 const eventController = new EventController(eventService);
 const registrationController = new RegistrationController(registrationService);
 const platformSettingsController = new PlatformSettingsController(platformSettingsService);

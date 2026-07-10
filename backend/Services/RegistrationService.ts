@@ -1,18 +1,26 @@
+// RegistrationService.ts
+import { IDatabase } from '../interfaces/DBConnection';
 import RegistrationRepository from '../repositories/RegistrationRepository';
 import EventRepository from '../repositories/EventRepository';
+import NotificationService from './NotificationService';
 import Registration, { RegistrationStatus } from '../models/registration';
 import { EventStatus } from '../models/event';
-import { IDatabase } from '../interfaces/DBConnection';
+import { NotificationType } from '../models/notification';
 
 class RegistrationService {
     constructor(
         private db: IDatabase,
         private registrationRepository: RegistrationRepository,
-        private eventRepository: EventRepository
+        private eventRepository: EventRepository,
+        private notificationService: NotificationService
     ) {}
 
     async rsvp(studentId: number, eventId: number, desiredStatus: RegistrationStatus): Promise<Registration> {
-        const event = await this.eventRepository.findById(eventId);
+    const client = await this.db.getClient();
+    try {
+        await client.query("BEGIN");
+
+        const event = await this.eventRepository.findByIdForUpdate(eventId, client);
         if (!event) {
             throw new Error("Event not found");
         }
@@ -20,30 +28,41 @@ class RegistrationService {
             throw new Error("Event is not open for RSVPs");
         }
 
-        const existing = await this.registrationRepository.findByStudentAndEvent(studentId, eventId);
+        const existing = await this.registrationRepository.findByStudentAndEvent(studentId, eventId, client);
 
         let finalStatus = desiredStatus;
         if (desiredStatus === RegistrationStatus.GOING) {
             const maxCapacity = event.getMaxCapacity();
             if (maxCapacity !== null) {
-                const currentGoing = await this.eventRepository.getCurrentGoingCount(eventId);
+                const currentGoing = await this.eventRepository.getCurrentGoingCount(eventId, client);
                 if (currentGoing >= maxCapacity) {
                     finalStatus = RegistrationStatus.WAITLISTED;
                 }
             }
         }
 
+        let registrationId: number;
         if (existing) {
-            await this.registrationRepository.updateStatus(existing.getId(), finalStatus);
-            const updated = await this.registrationRepository.findById(existing.getId());
-            return updated as Registration;
+            await this.registrationRepository.updateStatus(existing.getId(), finalStatus, client);
+            registrationId = existing.getId();
         } else {
             const registration = new Registration(0, studentId, eventId, finalStatus, new Date(), new Date());
-            const id = await this.registrationRepository.create(registration);
-            const created = await this.registrationRepository.findById(id);
-            return created as Registration;
+            registrationId = await this.registrationRepository.create(registration, client);
         }
+
+        await client.query("COMMIT");
+
+        const result = await this.registrationRepository.findById(registrationId);
+        return result as Registration;
     }
+    catch (error: any) {
+        await client.query("ROLLBACK");
+        throw error;
+    }
+    finally {
+        client.release();
+    }
+}
 
     async cancelRsvp(studentId: number, eventId: number): Promise<boolean> {
         const existing = await this.registrationRepository.findByStudentAndEvent(studentId, eventId);
@@ -53,6 +72,7 @@ class RegistrationService {
 
         const wasGoing = existing.getStatus() === RegistrationStatus.GOING;
         const client = await this.db.getClient();
+        let promotedStudentId: number | null = null;
         try {
             await client.query("BEGIN");
             const result = await this.registrationRepository.updateStatus(existing.getId(), RegistrationStatus.CANCELLED, client);
@@ -61,11 +81,23 @@ class RegistrationService {
                 const nextInLine = await this.registrationRepository.getOldestWaitlisted(eventId, client);
                 if (nextInLine) {
                     await this.registrationRepository.updateStatus(nextInLine.getId(), RegistrationStatus.GOING, client);
-                    // notification to promoted student deferred to Notifications module
+                    promotedStudentId = nextInLine.getStudentId();
                 }
             }
 
             await client.query("COMMIT");
+
+            if (promotedStudentId) {
+                const event = await this.eventRepository.findById(eventId);
+                await this.notificationService.notify(
+                    promotedStudentId,
+                    "You're off the waitlist!",
+                    `A spot opened up for "${event?.getTitle() ?? 'an event'}" and you've been moved to Going.`,
+                    NotificationType.WAITLIST_PROMOTED,
+                    eventId
+                );
+            }
+
             return result;
         }
         catch (error: any) {

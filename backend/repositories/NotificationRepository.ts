@@ -51,10 +51,10 @@ class NotificationRepository {
         }
     }
 
-    async markRead(id: number, client?: IDatabaseClient): Promise<boolean> {
+    async markRead(id: number, userId: number, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
-            const result = await db.query("UPDATE Notifications SET is_read=true WHERE id=$1 RETURNING *", [id]);
+            const result = await db.query("UPDATE Notifications SET is_read=true WHERE id=$1 AND user_id=$2 RETURNING *", [id, userId]);
             return (result.rowCount ?? 0) > 0;
         }
         catch (err: any) {
