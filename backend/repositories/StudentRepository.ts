@@ -14,8 +14,7 @@ const fieldMap: Record<string, string> = {
 class StudentRepository {
     constructor(
         private db: IDatabase
-    )
-    {
+    ) {
 
     }
 
@@ -34,7 +33,7 @@ class StudentRepository {
         );
     }
 
-    async create(student: Student,id:number, client?: IDatabaseClient): Promise<boolean> {
+    async create(student: Student, id: number, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
             const result = await db.query(
@@ -51,18 +50,17 @@ class StudentRepository {
         }
     }
 
-    async update(studentId: number, fields: StudentUpdateFields, client?: IDatabaseClient): Promise<boolean> {
+    // StudentRepository.ts
+    async update(studentId: number, fields: StudentUpdateFields, client?: IDatabaseClient): Promise<Student | null> {
         const db = client ?? this.db;
         const entries = Object.entries(fields);
         const setClause = entries.map(([key], i) => `${fieldMap[key]}=$${i + 1}`).join(',');
         const setValues = entries.map(([, value]) => value);
-
         try {
-            const result = await db.query(
-                `UPDATE student SET ${setClause} WHERE student_id=$${entries.length + 1} RETURNING *`,
-                [...setValues, studentId]
-            );
-            return (result.rowCount ?? 0) > 0;
+            const result = await db.query(`UPDATE student SET ${setClause} WHERE student_id=$${entries.length + 1} RETURNING *`, [...setValues, studentId]);
+            if ((result.rowCount ?? 0) === 0) return null;
+            // Need to re-fetch joined with Users, since UPDATE...RETURNING only gives student columns
+            return await this.findById(studentId, client);
         }
         catch (err: any) {
             throw new Error(err.message);

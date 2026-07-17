@@ -13,8 +13,7 @@ const fieldMap: Record<string, string> = {
 class OrganizerRepository {
     constructor(
         private db: IDatabase
-    )
-    {
+    ) {
 
     }
 
@@ -32,7 +31,7 @@ class OrganizerRepository {
         );
     }
 
-    async create(organizer: Organizer,id:number, client?: IDatabaseClient): Promise<boolean> {
+    async create(organizer: Organizer, id: number, client?: IDatabaseClient): Promise<boolean> {
         const db = client ?? this.db;
         try {
             const result = await db.query(
@@ -46,24 +45,23 @@ class OrganizerRepository {
         }
     }
 
-    async update(organizerId: number, fields: OrganizerUpdateFields, client?: IDatabaseClient): Promise<boolean> {
+    // OrganizerRepository.ts
+    async update(organizerId: number, fields: OrganizerUpdateFields, client?: IDatabaseClient): Promise<Organizer | null> {
         const db = client ?? this.db;
         const entries = Object.entries(fields);
         const setClause = entries.map(([key], i) => `${fieldMap[key]}=$${i + 1}`).join(',');
         const setValues = entries.map(([, value]) => value);
-
         try {
-            const result = await db.query(
-                `UPDATE organizer SET ${setClause} WHERE organizer_id=$${entries.length + 1} RETURNING *`,
-                [...setValues, organizerId]
-            );
-            return (result.rowCount ?? 0) > 0;
+            const result = await db.query(`UPDATE organizer SET ${setClause} WHERE organizer_id=$${entries.length + 1} RETURNING *`, [...setValues, organizerId]);
+            if ((result.rowCount ?? 0) === 0) return null;
+            // Need to re-fetch joined with Users, since UPDATE...RETURNING only gives organizer columns
+            return await this.findById(organizerId, client);
         }
         catch (err: any) {
             throw new Error(err.message);
         }
     }
-
+    
     async findAll(client?: IDatabaseClient): Promise<Organizer[] | null> {
         const db = client ?? this.db;
         try {

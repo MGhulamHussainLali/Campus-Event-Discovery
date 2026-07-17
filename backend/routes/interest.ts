@@ -5,7 +5,8 @@ import { authenticate, authorize } from '../middleware/auth';
 export default function interestRoutes(interestController: InterestController): Router {
     const router = Router();
 
-    router.post('/', authenticate, authorize('admin'), interestController.create);
+    router.post('/', authenticate, interestController.create);
+    router.get('/trending', interestController.getTrending);
     router.get('/mine', authenticate, authorize('student'), interestController.getStudentInterests);
     router.get('/:id', interestController.getById);
     router.get('/', interestController.getAll);

@@ -1,43 +1,50 @@
 import User from "./user"
 export enum School {
-    SBASSE = 'SBASSE - Syed Babar Ali School of Science and Engineering',
-    SDSB = 'SDSB - Suleiman Dawood School of Business',
-    MGHSS = 'MGHSS - Mushtaq Gurmani School of Humanities and Social Sciences',
-    SAHSOL = 'SAHSOL - Sheikh Ahmad Hassan School of Law'
+    SBASSE = 'SBASSE',
+    SDSB = 'SDSB',
+    MGHSS = 'MGHSS',
+    SAHSOL = 'SAHSOL'
 }
-class Student extends User
-{
+class Student extends User {
     constructor(
-        id:number, 
-        name:string, 
-        email:string, 
-        hashedPassword:string, 
-        pictureURL:string|null, 
-        accountStatus:'pending' | 'approved' | 'rejected' | 'suspended', 
+        id: number,
+        name: string,
+        email: string,
+        hashedPassword: string,
+        pictureURL: string | null,
+        accountStatus: 'pending' | 'approved' | 'rejected' | 'suspended',
         emailVerified: boolean,
         createdAt: Date,
         private rollNumber: number,
-        private school:School
-    )
-    {
-        super(id,name,email,hashedPassword,pictureURL,"student",accountStatus,emailVerified,createdAt)
+        private school: School
+    ) {
+        super(id, name, email, hashedPassword, pictureURL, "student", accountStatus, emailVerified, createdAt)
     }
-    getStudentId():number{
+    getStudentId(): number {
         return this.getId()
     }
-    getRollNumber():number{
+    getRollNumber(): number {
         return this.rollNumber;
     }
-    setRollNumber(rollNumber:number)
-    {
-        this.rollNumber=rollNumber;
+    setRollNumber(rollNumber: number) {
+        this.rollNumber = rollNumber;
     }
-    getSchool():string{
+    getSchool(): string {
         return this.school;
     }
-    setSchool(school:School){
-        this.school=school;
+    setSchool(school: School) {
+        this.school = school;
+    }
+    // student.ts — add to Student class, overriding the base
+    toSafeObject() {
+        return {
+            ...super.toSafeObject(),
+            studentId: this.getStudentId(),
+            rollNumber: this.rollNumber,
+            school: this.school
+        };
     }
     
+
 }
 export default Student;

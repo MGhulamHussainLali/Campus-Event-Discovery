@@ -36,6 +36,12 @@ class AuthController {
             const userAgent = req.headers['user-agent'] ?? null;
             const ipAddress = req.ip ?? null;
             const result = await this.authService.login(email, password, userAgent, ipAddress);
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                maxAge: 30 * 24 * 60 * 60 * 1000
+            });
             res.status(200).json(result);
         } catch (err: any) {
             res.status(401).json({ error: err.message });

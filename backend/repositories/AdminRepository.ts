@@ -1,5 +1,5 @@
-import Admin from '../models/admin.ts'
-import { IDatabase, IDatabaseClient } from '../interfaces/DBConnection.ts'
+import Admin from '../models/admin'
+import { IDatabase, IDatabaseClient } from '../interfaces/DBConnection'
 
 type AdminUpdateFields = {
     isSuperAdmin?: boolean;

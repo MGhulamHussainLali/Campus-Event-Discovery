@@ -8,14 +8,18 @@ class InterestService {
         private studentInterestRepository: StudentInterestRepository
     ) {}
 
-    async createInterest(name: string): Promise<number> {
-        const existing = await this.interestRepository.findByName(name);
-        if (existing) {
-            throw new Error("Interest already exists");
-        }
-        const interest = new Interest(0, name, new Date());
-        return await this.interestRepository.create(interest);
+    async createInterest(name: string, createdByUserId: number | null): Promise<number> {
+    const existing = await this.interestRepository.findByName(name);
+    if (existing) {
+        throw new Error("Interest already exists");
     }
+    const interest = new Interest(0, name, createdByUserId, null, new Date());
+    return await this.interestRepository.create(interest, createdByUserId);
+}
+
+async getTrendingInterests() {
+    return await this.interestRepository.getTrendingInterests();
+}
 
     async getInterestById(id: number): Promise<Interest | null> {
         return await this.interestRepository.findById(id);

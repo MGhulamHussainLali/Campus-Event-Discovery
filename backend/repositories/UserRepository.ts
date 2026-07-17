@@ -1,7 +1,7 @@
 import User from '../models/user';
 import { IDatabase, IDatabaseClient } from '../interfaces/DBConnection';
 
-interface UserUpdateFields {
+export interface UserUpdateFields {
     name?: string;
     email?: string;
     hashedPassword?: string;

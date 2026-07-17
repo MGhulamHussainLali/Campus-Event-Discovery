@@ -24,8 +24,13 @@ import AdminActionController from './controllers/AdminActionController';
 import NotificationController from './controllers/NotificationController';
 import AuditLogController from './controllers/AuditLogController';
 
+import userRoutes from './routes/users';
+import UserController from './controllers/UserController';
+import User from './models/user';
+
 export function createApp(
     authController: AuthController,
+    userController:UserController,
     categoryController: CategoryController,
     interestController: InterestController,
     organizationController: OrganizationController,
@@ -43,6 +48,7 @@ export function createApp(
     app.use(cookieParser());
 
     app.use('/auth', authRoutes(authController));
+    app.use('/users', userRoutes(userController));
     app.use('/categories', categoryRoutes(categoryController));
     app.use('/interests', interestRoutes(interestController));
     app.use('/organizations', organizationRoutes(organizationController));

@@ -40,6 +40,7 @@ import PlatformSettingsService from './services/PlatformSettingsService';
 import AdminActionService from './services/AdminActionService';
 import NotificationService from './services/NotificationService';
 import AuditLogService from './services/AuditLogService';
+import UserService from './services/UserService';
 
 // Controllers
 import AuthController from './controllers/AuthController';
@@ -52,6 +53,7 @@ import PlatformSettingsController from './controllers/PlatformSettingsController
 import AdminActionController from './controllers/AdminActionController';
 import NotificationController from './controllers/NotificationController';
 import AuditLogController from './controllers/AuditLogController';
+import UserController from './controllers/UserController';
 
 const db = new PostgresDatabase();
 
@@ -78,7 +80,6 @@ const platformSettingsLogRepository = new PlatformSettingsLogRepository(db);
 const notificationRepository = new NotificationRepository(db);
 const pushSubscriptionRepository = new PushSubscriptionRepository(db);
 
-
 // Services
 const studentService = new StudentService(db, userRepository, studentRepository);
 const organizerService = new OrganizerService(db, userRepository, organizerRepository);
@@ -98,13 +99,14 @@ const authService = new AuthService(
     platformSettingsService
 );
 const notificationService = new NotificationService(notificationRepository, pushSubscriptionRepository);
-const categoryService = new CategoryService(categoryRepository);
 const interestService = new InterestService(interestRepository, studentInterestRepository);
+const categoryService = new CategoryService(db, categoryRepository, interestRepository);
 const organizationService = new OrganizationService(organizationRepository);
 const eventService = new EventService(db, eventRepository, categoryRepository, eventStatusLogRepository, registrationRepository, platformSettingsService, notificationService);
 const registrationService = new RegistrationService(db, registrationRepository, eventRepository, notificationService);
-const adminActionService = new AdminActionService(db, userRepository, adminRepository, accountStatusLogRepository, refreshTokenRepository, notificationService)
+const adminActionService = new AdminActionService(db, userRepository, adminRepository, accountStatusLogRepository, refreshTokenRepository, notificationService);
 const auditLogService = new AuditLogService(accountStatusLogRepository, eventStatusLogRepository, platformSettingsLogRepository);
+const userService = new UserService(userRepository, studentRepository, organizerRepository);
 
 // Controllers
 const authController = new AuthController(authService);
@@ -117,9 +119,11 @@ const platformSettingsController = new PlatformSettingsController(platformSettin
 const adminActionController = new AdminActionController(adminActionService);
 const notificationController = new NotificationController(notificationService);
 const auditLogController = new AuditLogController(auditLogService);
+const userController = new UserController(userService);
 
 const app = createApp(
     authController,
+    userController,
     categoryController,
     interestController,
     organizationController,

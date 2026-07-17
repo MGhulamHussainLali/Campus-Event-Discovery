@@ -1,3 +1,14 @@
+-- schema.sql
+
+-- Connect to the default postgres database first to run DROP/CREATE DATABASE
+\c postgres
+
+DROP DATABASE IF EXISTS campus_event_discovery;
+CREATE DATABASE campus_event_discovery;
+
+-- Switch into the newly created database
+\c campus_event_discovery
+
 -- ============================================================
 -- Campus Event Discovery Platform 
 -- ============================================================
@@ -11,10 +22,10 @@ CREATE TYPE role_enum AS ENUM ('student', 'organizer', 'admin');
 CREATE TYPE account_status_enum AS ENUM ('pending', 'approved', 'rejected', 'suspended');
 
 CREATE TYPE school_enum AS ENUM (
-    'SBASSE - Syed Babar Ali School of Science and Engineering',
-    'SDSB - Suleiman Dawood School of Business',
-    'MGHSS - Mushtaq Gurmani School of Humanities and Social Sciences',
-    'SAHSOL - Sheikh Ahmad Hassan School of Law'
+    'SBASSE',
+    'SDSB',
+    'MGHSS',
+    'SAHSOL'
 );
 
 CREATE TYPE event_status_enum AS ENUM ('pending', 'approved', 'rejected', 'cancelled', 'completed');
@@ -63,8 +74,8 @@ CREATE TABLE Organization (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE Organiser (
-    organiser_id INTEGER PRIMARY KEY REFERENCES Users(id),
+CREATE TABLE Organizer (
+    organizer_id INTEGER PRIMARY KEY REFERENCES Users(id),
     organization_id INTEGER NOT NULL REFERENCES Organization(organization_id)
 );
 
@@ -110,8 +121,8 @@ CREATE TABLE Event (
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     category_id INTEGER NOT NULL REFERENCES Category(id),
-    organizer_id INTEGER NOT NULL REFERENCES Organiser(organiser_id),
-    organization_id INTEGER NOT NULL REFERENCES Organization(organization_id)
+    organizer_id INTEGER NOT NULL REFERENCES Organizer(organizer_id),
+    organization_id INTEGER NOT NULL REFERENCES Organization(organization_id),
     venue_name TEXT,
     address TEXT,
     poster_url TEXT,
@@ -251,3 +262,6 @@ CREATE TABLE Login_Attempt (
     ip_address TEXT,
     attempted_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE Interest ADD COLUMN created_by_user_id INTEGER REFERENCES Users(id);
+ALTER TABLE Interest ADD COLUMN source_category_id INTEGER REFERENCES Category(id);

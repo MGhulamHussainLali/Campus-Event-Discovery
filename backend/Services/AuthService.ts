@@ -125,9 +125,11 @@ class AuthService {
         if (!user.getEmailVerified()) {
             throw new Error("Email not verified")
         }
-        if (user.getAccountStatus() !== 'approved') {
-            throw new Error("Account not approved");
-        }
+
+        if (user.getAccountStatus() === 'pending') throw new Error('Account pending approval');
+        if (user.getAccountStatus() === 'rejected') throw new Error('Account rejected');
+        if (user.getAccountStatus() === 'suspended') throw new Error('Account suspended');
+        if (user.getAccountStatus() !== 'approved') throw new Error('Account not approved');
 
         let isSuperAdmin: boolean | undefined = undefined;
         if (user.getRole() === 'admin') {
@@ -138,7 +140,7 @@ class AuthService {
         const accessToken = jwt.sign(
             { id: user.getId(), role: user.getRole(), isSuperAdmin },
             process.env.JWT_SECRET as string,
-            { expiresIn: '15m' }
+            { expiresIn: '59m' }
         );
         const rawRefreshToken = crypto.randomBytes(32).toString('hex');
         const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');

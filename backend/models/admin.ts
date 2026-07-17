@@ -1,45 +1,48 @@
 import User from './user'
 
 class Admin extends User {
-constructor(
+    constructor(
         id: number,
-        name:string, 
-        email:string, 
-        hashedPassword:string,
-        pictureURL:string|null, 
-        accountStatus: 'pending' | 'approved' | 'rejected' | 'suspended', 
-        emailVerified:boolean, 
-        createdAt:Date,
-        private isSuperAdmin:boolean,
-        private createdByAdminId:number|null
-)
+        name: string,
+        email: string,
+        hashedPassword: string,
+        pictureURL: string | null,
+        accountStatus: 'pending' | 'approved' | 'rejected' | 'suspended',
+        emailVerified: boolean,
+        createdAt: Date,
+        private isSuperAdmin: boolean,
+        private createdByAdminId: number | null
+    ) {
+        super(id, name, email, hashedPassword, pictureURL, "admin", accountStatus, emailVerified, createdAt);
+    }
 
-{
-    super(id,name,email,hashedPassword,pictureURL,"admin",accountStatus,emailVerified,createdAt);
-}
+    getIsSuperAdmin(): boolean {
+        return this.isSuperAdmin;
+    }
 
-getIsSuperAdmin():boolean
-{
-    return this.isSuperAdmin;
-}
+    setIsSuperAdmin(isSuperAdmin: boolean): void {
+        this.isSuperAdmin = isSuperAdmin;
+    }
 
-setIsSuperAdmin(isSuperAdmin:boolean):void
-{
-    this.isSuperAdmin=isSuperAdmin;
-}
+    getCreatedByAdminId(): number | null {
+        return this.createdByAdminId;
+    }
 
-getCreatedByAdminId(): number | null {
-    return this.createdByAdminId;
-  }
-
-setCreatedByAdminId(createdByAdminId:number|null)
-{
-    this.createdByAdminId=createdByAdminId;
-}
-getAdminId():number
-{
-return this.getId();
-}
+    setCreatedByAdminId(createdByAdminId: number | null) {
+        this.createdByAdminId = createdByAdminId;
+    }
+    getAdminId(): number {
+        return this.getId();
+    }
+    // admin.ts — add to Admin class, overriding the base
+    toSafeObject() {
+        return {
+            ...super.toSafeObject(),
+            adminId: this.getAdminId(),
+            isSuperAdmin: this.isSuperAdmin,
+            createdByAdminId: this.createdByAdminId
+        };
+    }
 
 }
 export default Admin;

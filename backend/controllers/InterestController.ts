@@ -2,13 +2,24 @@ import { Request, Response } from 'express';
 import InterestService from '../services/InterestService';
 
 class InterestController {
-    constructor(private interestService: InterestService) {}
+    constructor(private interestService: InterestService) { }
 
     create = async (req: Request, res: Response) => {
         try {
             const { name } = req.body;
-            const id = await this.interestService.createInterest(name);
+            const user = (req as any).user;
+            const createdByUserId = user.role === 'admin' ? null : user.id;
+            const id = await this.interestService.createInterest(name, createdByUserId);
             res.status(201).json({ id });
+        } catch (err: any) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    getTrending = async (req: Request, res: Response) => {
+        try {
+            const trending = await this.interestService.getTrendingInterests();
+            res.status(200).json(trending);
         } catch (err: any) {
             res.status(400).json({ error: err.message });
         }

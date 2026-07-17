@@ -31,7 +31,7 @@ class StudentInterestRepository {
         const db = client ?? this.db;
         try {
             const result = await db.query("SELECT i.* FROM Student_Interest s JOIN Interest i ON s.interest_id = i.id WHERE s.student_id = $1", [studentId])
-            return result.rows.map((row: any) => new Interest(row.id, row.name, row.created_at))
+            return result.rows.map((row: any) => new Interest(row.id, row.name, row.created_by_user_id, row.source_category_id, row.created_at))
         }
         catch (err: any) {
             throw new Error(err.message)

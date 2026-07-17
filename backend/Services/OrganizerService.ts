@@ -15,10 +15,11 @@ class OrganizerService {
     async createOrganizerUser(userData: User, organizerData: Organizer): Promise<number> {
 
         const client = await this.db.getClient();
-        try {
+        try 
+        {
             await client.query("BEGIN");
             const id=await this.userRepository.create(userData, client);
-            await this.organizerRepository.create(organizerData, id,client);
+            await this.organizerRepository.create(organizerData, 75,client);
             await client.query("COMMIT")
             return id;
         }
